@@ -1,0 +1,13 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import yfinance as yf
+
+aapl = yf.Ticker("AAPL")
+long_hist =  aapl.history(period="3mo")
+short_hist = aapl.history(period="5d")
+#aapl_price = aapl.info.get('currentPrice')
+print(long_hist['Close'].mean())
+print(short_hist['Close'].mean())
+if short_hist['Close'].mean() > long_hist['Close'].mean():
+    print("buy")
+elif 
