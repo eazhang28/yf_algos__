@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import yfinance as yf
 import requests
+import pandas as pd
+import math
+import os
 from bs4 import BeautifulSoup
 
 url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
@@ -12,15 +15,44 @@ tickers = []
 for tr in table.find_all('tr')[1:]:
     cells = tr.find_all(['td', 'th'])
     row = [cell.text.strip() for cell in cells]
-    tickers.append(row[0])
-
+    ticker = row[0]
+    ticker = ticker.replace('.','-')                # Clean up formatting for yfinance
+    tickers.append(ticker)
+print("SP500 Tickers Accquired...")
 # tickers acquired
 
-aapl = yf.Ticker("AAPL")
-long_hist =  aapl.history(period="3mo")
-short_hist = aapl.history(period="5d")
-#aapl_price = aapl.info.get('currentPrice')
-print(long_hist['Close'].mean())
-print(short_hist['Close'].mean())
-if short_hist['Close'].mean() > long_hist['Close'].mean():
-    print("buy")
+stockinfo = []
+for t in tickers:
+    tk = yf.Ticker(t)
+    long_hist =  tk.history(period="3mo")['Close'].reset_index(drop=True)
+    long_mean = long_hist.mean()
+    long_hist = long_hist.tolist()
+    observed_price = tk.history(period="1d")['Close'].reset_index(drop=True).tolist()
+    observed_price = observed_price[0]
+    #print(observed_price)
+    n = len(long_hist)
+
+    sum_squared_devs = 0
+    for price in long_hist:
+        dev = price - long_mean
+        sum_squared_devs += dev ** 2
+    std = math.sqrt(sum_squared_devs**2/(len(long_hist)-1))
+    dev_observed = observed_price - long_mean
+    zsc = dev_observed/std
+    rinfo = [t,n,observed_price,long_mean,zsc]
+    
+    if zsc >= 0.15:
+        rinfo.append('sell')
+    elif zsc <= -0.15:
+        rinfo.append('buy')
+    else:
+        rinfo.append('hold')
+    stockinfo.append(rinfo)
+    print(stockinfo)
+    print("Data obtained for ticker " + t)
+
+df = pd.DataFrame(stockinfo, columns=['Symbol','Observations','Observed Price','3-Month Mean','Z-Score','Action'])
+cwd = os.getcwd()
+fp = os.path.join(cwd,'sp500_actions.csv')
+df.to_csv(fp,index=False,)
+print("Data Saved to CSV")
